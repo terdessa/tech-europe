@@ -88,19 +88,46 @@ export default function KidHomePage() {
           </OrnateButton>
         </div>
 
+        {/* Interests */}
+        {child.interests?.length > 0 && (
+          <div>
+            <p className="text-xs font-cinzel text-parchment-600 uppercase tracking-widest mb-2">
+              Loves
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {child.interests.map((interest, i) => (
+                <motion.span
+                  key={interest}
+                  className="bg-forest-900/30 border border-forest-600/20 rounded-full px-4 py-1.5 text-sm font-crimson text-forest-300"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 + i * 0.06 }}
+                >
+                  {interest}
+                </motion.span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Traits */}
-        <div className="flex flex-wrap justify-center gap-2 mt-4">
-          {child.characterInfo.keyTraits.map((trait, i) => (
-            <motion.span
-              key={trait}
-              className="bg-gold-500/10 border border-gold-500/20 rounded-full px-4 py-1.5 text-sm font-crimson text-gold-400"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 + i * 0.1 }}
-            >
-              {trait}
-            </motion.span>
-          ))}
+        <div>
+          <p className="text-xs font-cinzel text-parchment-600 uppercase tracking-widest mb-2">
+            Traits
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {child.characterInfo.keyTraits.map((trait, i) => (
+              <motion.span
+                key={trait}
+                className="bg-gold-500/10 border border-gold-500/20 rounded-full px-4 py-1.5 text-sm font-crimson text-gold-400"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 + i * 0.1 }}
+              >
+                {trait}
+              </motion.span>
+            ))}
+          </div>
         </div>
       </motion.div>
     </div>

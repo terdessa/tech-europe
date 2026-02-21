@@ -9,6 +9,7 @@ import type {
 export interface CreateCharacterRequest {
   childName: string;
   childAge: number;
+  childInterests: string[];
   characterName: string;
 }
 

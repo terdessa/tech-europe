@@ -14,9 +14,10 @@ import {
   QuillLoading,
   FloatingParticles,
 } from "@/components/ui/StoryBookUI";
+import InterestPicker from "@/components/ui/InterestPicker";
 import type { CreateCharacterResponse } from "@/types/api";
 
-type Step = "parent" | "child" | "creating";
+type Step = "parent" | "child" | "interests" | "character" | "creating";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState("");
   const [childName, setChildName] = useState("");
   const [childAge, setChildAge] = useState(6);
+  const [interests, setInterests] = useState<string[]>([]);
   const [characterName, setCharacterName] = useState("");
 
   async function handleParentSubmit(e: React.FormEvent) {
@@ -52,7 +54,16 @@ export default function OnboardingPage() {
     setStep("child");
   }
 
-  async function handleChildSubmit(e: React.FormEvent) {
+  function handleChildSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStep("interests");
+  }
+
+  function handleInterestsSubmit() {
+    setStep("character");
+  }
+
+  async function handleCharacterSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!uid) return;
     setError("");
@@ -62,7 +73,12 @@ export default function OnboardingPage() {
       const res = await fetch("/api/character/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ childName, childAge, characterName }),
+        body: JSON.stringify({
+          childName,
+          childAge,
+          childInterests: interests,
+          characterName,
+        }),
       });
 
       if (!res.ok) {
@@ -76,6 +92,7 @@ export default function OnboardingPage() {
         parentId: uid,
         name: childName,
         age: childAge,
+        interests,
         characterName,
         characterInfo: data.characterInfo,
         characterImageUrl: data.characterImageUrl,
@@ -88,9 +105,12 @@ export default function OnboardingPage() {
       router.push("/kid/library");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-      setStep("child");
+      setStep("character");
     }
   }
+
+  const stepIndex = { parent: 0, child: 1, interests: 2, character: 3, creating: 3 };
+  const stepLabels = ["You", "Child", "Interests", "Character"];
 
   return (
     <div className="storybook-page flex items-center justify-center min-h-screen p-4 relative">
@@ -111,23 +131,26 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step indicators */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          {["parent", "child"].map((s, i) => (
-            <div key={s} className="flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-cinzel font-bold border-2 transition-all
-                  ${
-                    step === s || (step === "creating" && s === "child")
-                      ? "bg-gold-500 text-ink-900 border-gold-400"
-                      : i === 0 && step !== "parent"
-                      ? "bg-forest-600 text-parchment-100 border-forest-500"
-                      : "bg-ink-800 text-parchment-500 border-ink-600"
-                  }`}
-              >
-                {i === 0 && step !== "parent" ? "✓" : i + 1}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          {stepLabels.map((label, i) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-cinzel font-bold border-2 transition-all
+                    ${
+                      stepIndex[step] === i
+                        ? "bg-gold-500 text-ink-900 border-gold-400"
+                        : stepIndex[step] > i
+                        ? "bg-forest-600 text-parchment-100 border-forest-500"
+                        : "bg-ink-800 text-parchment-500 border-ink-600"
+                    }`}
+                >
+                  {stepIndex[step] > i ? "✓" : i + 1}
+                </div>
+                <span className="text-[10px] font-crimson text-parchment-600">{label}</span>
               </div>
-              {i < 1 && (
-                <div className="w-12 h-0.5 bg-gold-500/20 rounded" />
+              {i < stepLabels.length - 1 && (
+                <div className="w-6 h-0.5 bg-gold-500/20 rounded mb-4" />
               )}
             </div>
           ))}
@@ -171,7 +194,7 @@ export default function OnboardingPage() {
             >
               <ParchmentCard className="p-8">
                 <h2 className="text-xl font-cinzel font-semibold text-parchment-200 mb-4">
-                  Your Child&apos;s Companion
+                  About Your Child
                 </h2>
                 <form onSubmit={handleChildSubmit} className="space-y-4">
                   <ScrollInput
@@ -202,6 +225,77 @@ export default function OnboardingPage() {
                     </div>
                   </div>
 
+                  <div className="flex gap-3">
+                    <OrnateButton
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setStep("parent")}
+                      className="flex-1"
+                    >
+                      Back
+                    </OrnateButton>
+                    <OrnateButton type="submit" variant="primary" size="lg" className="flex-1">
+                      Continue
+                    </OrnateButton>
+                  </div>
+                </form>
+              </ParchmentCard>
+            </motion.div>
+          )}
+
+          {step === "interests" && (
+            <motion.div
+              key="interests"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <ParchmentCard className="p-8">
+                <h2 className="text-xl font-cinzel font-semibold text-parchment-200 mb-1">
+                  What Does {childName || "Your Child"} Love?
+                </h2>
+                <p className="text-parchment-500 font-crimson text-sm mb-4">
+                  This helps us tailor the character&apos;s personality and conversations.
+                </p>
+
+                <InkDivider className="mb-4" />
+
+                <InterestPicker selected={interests} onChange={setInterests} />
+
+                <div className="flex gap-3 mt-6">
+                  <OrnateButton
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setStep("child")}
+                    className="flex-1"
+                  >
+                    Back
+                  </OrnateButton>
+                  <OrnateButton
+                    variant="primary"
+                    size="lg"
+                    className="flex-1"
+                    onClick={handleInterestsSubmit}
+                  >
+                    Continue
+                  </OrnateButton>
+                </div>
+              </ParchmentCard>
+            </motion.div>
+          )}
+
+          {step === "character" && (
+            <motion.div
+              key="character"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <ParchmentCard className="p-8">
+                <h2 className="text-xl font-cinzel font-semibold text-parchment-200 mb-4">
+                  Name the Character
+                </h2>
+                <form onSubmit={handleCharacterSubmit} className="space-y-4">
                   <ScrollInput
                     label="Character Name"
                     type="text"
@@ -211,7 +305,8 @@ export default function OnboardingPage() {
                     placeholder="Name the storybook character (e.g., Sparky, Luna)"
                   />
                   <p className="text-xs text-parchment-600 font-crimson -mt-2">
-                    We&apos;ll create a unique, safe character inspired by this name.
+                    We&apos;ll create a unique, safe character inspired by this name
+                    {interests.length > 0 && ` who shares ${childName}'s love of ${interests.slice(0, 3).join(", ")}`}.
                   </p>
 
                   {error && (
@@ -224,7 +319,7 @@ export default function OnboardingPage() {
                     <OrnateButton
                       type="button"
                       variant="ghost"
-                      onClick={() => setStep("parent")}
+                      onClick={() => setStep("interests")}
                       className="flex-1"
                     >
                       Back

@@ -57,6 +57,7 @@ export interface Child {
   parentId: string;
   name: string;
   age: number;
+  interests: string[];
   characterName: string;
   characterInfo: CharacterInfo;
   characterImageUrl?: string;

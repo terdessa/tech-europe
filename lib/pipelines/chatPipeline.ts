@@ -94,7 +94,8 @@ export async function runChatPipeline(
       recommendedTone: dustA.recommendedTone,
       suggestedApproach: dustA.suggestedApproach,
       currentMood: dustA.currentMood,
-    }
+    },
+    child.interests || []
   );
 
   // Step 5: Dust B — Safety Gate + Rewrite

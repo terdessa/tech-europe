@@ -148,9 +148,28 @@ export default function KidLibraryPage() {
                       {child.name}&apos;s friend &middot; Age {child.age}
                     </p>
 
+                    {/* Interests */}
+                    {child.interests?.length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-1.5 mt-3">
+                        {child.interests.slice(0, 4).map((interest) => (
+                          <span
+                            key={interest}
+                            className="text-xs px-2 py-0.5 rounded-full bg-forest-900/30 text-forest-300 border border-forest-600/20 font-crimson"
+                          >
+                            {interest}
+                          </span>
+                        ))}
+                        {child.interests.length > 4 && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-ink-700/50 text-parchment-500 font-crimson">
+                            +{child.interests.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Traits */}
                     {child.characterInfo?.keyTraits && (
-                      <div className="flex flex-wrap justify-center gap-1.5 mt-3">
+                      <div className="flex flex-wrap justify-center gap-1.5 mt-2">
                         {child.characterInfo.keyTraits.slice(0, 3).map((trait) => (
                           <span
                             key={trait}
