@@ -34,7 +34,7 @@ export default function AlertsPanel({ alerts }: AlertsPanelProps) {
                 <span className="text-xs font-cinzel font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: (riskColors[alert.riskLevel] || riskColors.LOW) + "20", color: riskColors[alert.riskLevel] || riskColors.LOW }}>
                   {alert.riskLevel}
                 </span>
-                <span className="text-xs text-parchment-500 font-crimson">{alert.categories.join(", ")}</span>
+                <span className="text-xs text-parchment-500 font-crimson">{(alert.categories ?? []).join(", ")}</span>
               </div>
               <p className="text-sm text-parchment-300 font-crimson">{alert.summary}</p>
             </div>

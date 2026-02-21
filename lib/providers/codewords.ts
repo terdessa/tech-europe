@@ -27,6 +27,8 @@ async function triggerCodeWords(
   }
 }
 
+const SKIPPED = { success: true } as const;
+
 export async function sendAlert(payload: {
   childName: string;
   riskLevel: string;
@@ -35,7 +37,7 @@ export async function sendAlert(payload: {
   timestamp: string;
 }) {
   const url = process.env.CODEWORDS_ALERT_WEBHOOK;
-  if (!url) throw new Error("CODEWORDS_ALERT_WEBHOOK not configured");
+  if (!url) return SKIPPED;
   return triggerCodeWords(url, payload);
 }
 
@@ -46,7 +48,7 @@ export async function sendMissionNotification(payload: {
   source: string;
 }) {
   const url = process.env.CODEWORDS_MISSION_WEBHOOK;
-  if (!url) throw new Error("CODEWORDS_MISSION_WEBHOOK not configured");
+  if (!url) return SKIPPED;
   return triggerCodeWords(url, payload);
 }
 
@@ -59,7 +61,7 @@ export async function sendWeeklyDigest(payload: {
   nextSteps: string[];
 }) {
   const url = process.env.CODEWORDS_WEEKLY_DIGEST_WEBHOOK;
-  if (!url) throw new Error("CODEWORDS_WEEKLY_DIGEST_WEBHOOK not configured");
+  if (!url) return SKIPPED;
   return triggerCodeWords(url, payload);
 }
 
@@ -69,7 +71,7 @@ export async function sendReengagement(payload: {
   daysSinceLastChat: number;
 }) {
   const url = process.env.CODEWORDS_REENGAGE_WEBHOOK;
-  if (!url) throw new Error("CODEWORDS_REENGAGE_WEBHOOK not configured");
+  if (!url) return SKIPPED;
   return triggerCodeWords(url, payload);
 }
 
@@ -79,6 +81,6 @@ export async function sendMonthlyReport(payload: {
   reportData: Record<string, unknown>;
 }) {
   const url = process.env.CODEWORDS_MONTHLY_REPORT_WEBHOOK;
-  if (!url) throw new Error("CODEWORDS_MONTHLY_REPORT_WEBHOOK not configured");
+  if (!url) return SKIPPED;
   return triggerCodeWords(url, payload);
 }

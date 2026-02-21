@@ -31,12 +31,20 @@ export default function KidChatPage() {
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (childId && uid) {
-      getChild(childId).then((c) => {
-        if (c && c.parentId === uid) setChild(c);
-      });
-      getRecentMessages(childId, 50).then(setMessages);
+    async function load() {
+      let currentUid = uid;
+      if (!currentUid) {
+        const { getStoredUser } = await import("@/lib/auth-client");
+        const stored = getStoredUser();
+        if (stored) currentUid = stored.uid;
+      }
+      if (!childId || !currentUid) return;
+      const c = await getChild(childId);
+      if (c) setChild(c);
+      const msgs = await getRecentMessages(childId, 50);
+      setMessages(msgs);
     }
+    load();
   }, [childId, uid]);
 
   useEffect(() => {

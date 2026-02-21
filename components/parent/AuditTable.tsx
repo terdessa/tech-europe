@@ -43,7 +43,7 @@ export default function AuditTable({ messages }: AuditTableProps) {
                   {wasInjection && <span className="text-xs bg-red-900/40 text-red-200 px-2 py-0.5 rounded-full font-cinzel font-medium">Injection Attempt</span>}
                   {!wasRewritten && !wasEscalated && !wasInjection && <span className="text-xs bg-forest-900/30 text-forest-300 px-2 py-0.5 rounded-full font-cinzel font-medium">Clean</span>}
                   {msg.dustB?.riskLevel && <span className="text-xs px-2 py-0.5 rounded-full font-cinzel" style={{ backgroundColor: (riskColors[msg.dustB.riskLevel] || riskColors.LOW) + "15", color: riskColors[msg.dustB.riskLevel] || riskColors.LOW }}>Risk: {msg.dustB.riskLevel}</span>}
-                  <span className="flex-1 text-sm text-parchment-300 font-crimson truncate">{msg.content.slice(0, 80)}{msg.content.length > 80 ? "..." : ""}</span>
+                  <span className="flex-1 text-sm text-parchment-300 font-crimson truncate">{(msg.content ?? "").slice(0, 80)}{(msg.content ?? "").length > 80 ? "..." : ""}</span>
                   <span className="text-xs text-parchment-600">{isExpanded ? "▲" : "▼"}</span>
                 </div>
               </button>
@@ -66,9 +66,9 @@ export default function AuditTable({ messages }: AuditTableProps) {
                               {msg.dustB.isCompliant ? "Compliant" : "Non-compliant"}
                             </span>
                           </div>
-                          {msg.dustB.violations.length > 0 && (
+                          {(msg.dustB.violations ?? []).length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-2">
-                              {msg.dustB.violations.map((v, j) => <span key={j} className="text-xs bg-red-900/30 text-red-300 px-2 py-0.5 rounded-full">{v}</span>)}
+                              {(msg.dustB.violations ?? []).map((v, j) => <span key={j} className="text-xs bg-red-900/30 text-red-300 px-2 py-0.5 rounded-full">{v}</span>)}
                             </div>
                           )}
                           {msg.dustB.rewriteReason && <p className="text-sm font-crimson text-parchment-300">{msg.dustB.rewriteReason}</p>}
@@ -83,7 +83,7 @@ export default function AuditTable({ messages }: AuditTableProps) {
                           <span className="text-xs font-cinzel font-semibold text-parchment-500 uppercase tracking-wide mb-2 block">Emotion Analysis</span>
                           <div className="grid grid-cols-2 gap-2 text-xs font-crimson">
                             <div><span className="text-parchment-500">Mood:</span> <span className="text-parchment-200 font-medium">{msg.dustA.currentMood}</span></div>
-                            <div><span className="text-parchment-500">Confidence:</span> <span className="text-parchment-200 font-medium">{Math.round(msg.dustA.confidence * 100)}%</span></div>
+                            <div><span className="text-parchment-500">Confidence:</span> <span className="text-parchment-200 font-medium">{Math.round((msg.dustA.confidence ?? 0) * 100)}%</span></div>
                             <div><span className="text-parchment-500">Tone:</span> <span className="text-parchment-200 font-medium">{msg.dustA.recommendedTone}</span></div>
                             <div><span className="text-parchment-500">Risk:</span> <span className="font-medium" style={{ color: riskColors[msg.dustA.riskLevel] || riskColors.LOW }}>{msg.dustA.riskLevel}</span></div>
                           </div>

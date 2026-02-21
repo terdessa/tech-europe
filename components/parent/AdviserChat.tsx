@@ -31,7 +31,7 @@ export default function AdviserChat({ childId }: AdviserChatProps) {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "adviser", childId, question }) });
+      const res = await fetch("/api/adviser", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ childId, question }) });
       if (!res.ok) throw new Error("Adviser request failed");
       const data: DustAdviserOutput = await res.json();
       setMessages((prev) => [...prev, { role: "adviser", content: data.answer, actions: data.suggestedActions, scripts: data.suggestedScripts }]);

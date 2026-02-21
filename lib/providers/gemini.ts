@@ -12,7 +12,7 @@ interface GeminiResponse {
   }[];
 }
 
-async function callGemini(prompt: string): Promise<string> {
+export async function callGemini(prompt: string, maxTokens = 4096): Promise<string> {
   const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -20,7 +20,7 @@ async function callGemini(prompt: string): Promise<string> {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.8,
-        maxOutputTokens: 2048,
+        maxOutputTokens: maxTokens,
       },
     }),
   });
@@ -33,6 +33,25 @@ async function callGemini(prompt: string): Promise<string> {
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Empty response from Gemini");
   return text;
+}
+
+function tryParseJson(raw: string): Record<string, unknown> {
+  const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Attempt to fix truncated JSON: close any open strings and braces
+    let fixed = cleaned;
+    const openBraces = (fixed.match(/{/g) || []).length;
+    const closeBraces = (fixed.match(/}/g) || []).length;
+    if (!fixed.endsWith('"') && !fixed.endsWith('}') && !fixed.endsWith(']')) {
+      fixed += '"';
+    }
+    for (let i = closeBraces; i < openBraces; i++) {
+      fixed += "}";
+    }
+    return JSON.parse(fixed);
+  }
 }
 
 export interface ChildProfile {
@@ -78,17 +97,22 @@ Generate a JSON object (and ONLY the JSON, no markdown) with these fields:
 
 Make it age-appropriate for a ${childAge}-year-old. Be warm, creative, and engaging. The character should feel like a kind friend from a picture book.`;
 
-  const text = await callGemini(prompt);
-  const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
-  const parsed = JSON.parse(cleaned);
+  let parsed: Record<string, unknown>;
+  try {
+    const text = await callGemini(prompt);
+    parsed = tryParseJson(text);
+  } catch {
+    const text = await callGemini(prompt);
+    parsed = tryParseJson(text);
+  }
   return {
-    personality: parsed.personality,
-    speechStyle: parsed.speechStyle,
-    keyTraits: parsed.keyTraits,
-    backstorySummary: parsed.backstorySummary,
-    safeDepictionNote: parsed.safeDepictionNote,
-    gender: parsed.gender || characterGender || "neutral",
-  } as CharacterInfo;
+    personality: (parsed.personality as string) || "A friendly and kind character",
+    speechStyle: (parsed.speechStyle as string) || "Warm and age-appropriate",
+    keyTraits: (parsed.keyTraits as string[]) || ["kind", "friendly", "curious"],
+    backstorySummary: (parsed.backstorySummary as string) || undefined,
+    safeDepictionNote: (parsed.safeDepictionNote as string) || undefined,
+    gender: (parsed.gender as CharacterGender) || characterGender || "neutral",
+  };
 }
 
 export async function generateChatReply(

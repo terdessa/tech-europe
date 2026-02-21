@@ -30,6 +30,7 @@ export default function VoicePlayer({ onSpeakingChange, gender }: VoicePlayerPro
   }, [onSpeakingChange]);
 
   const playTTS = useCallback(async (text: string, voiceGender?: CharacterGender) => {
+    if (!text?.trim()) return;
     try {
       const res = await fetch("/api/voice/tts", {
         method: "POST",

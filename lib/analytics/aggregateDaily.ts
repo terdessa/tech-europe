@@ -3,9 +3,10 @@ import { dbGetDailyAnalytics, dbSetDailyAnalytics } from "@/lib/local-db";
 export function updateDailyAnalytics(
   childId: string,
   mood: string,
-  topics: string[],
+  topics: string[] | undefined | null,
   confidence: number
 ) {
+  const safeTopics = Array.isArray(topics) ? topics : [];
   const today = new Date().toISOString().split("T")[0];
   const existing = dbGetDailyAnalytics(childId, today);
 
@@ -13,7 +14,7 @@ export function updateDailyAnalytics(
     dbSetDailyAnalytics(childId, today, {
       dominantMood: mood,
       moodBreakdown: { [mood]: 1 },
-      topTopics: topics,
+      topTopics: safeTopics,
       messageCount: 1,
       vocabularyScore: 0,
       curiosityScore: 0,
@@ -33,10 +34,10 @@ export function updateDailyAnalytics(
 
     const existingTopics = (existing.topTopics as string[]) || [];
     const mergedTopics = Array.from(
-      new Set([...existingTopics, ...topics])
+      new Set([...existingTopics, ...safeTopics])
     ).slice(0, 20);
 
-    const curiosityBoost = topics.some((t) =>
+    const curiosityBoost = safeTopics.some((t) =>
       t.toLowerCase().includes("question")
     )
       ? 1

@@ -1,103 +1,52 @@
-# Dust Agent Setup Guide
+# Dust Integration Setup
 
-This document explains how to connect the 5 Dust agents to Lumio.
+Lumio uses the **Dust Conversations API** to power emotion analysis, safety gating, parent adviser, missions, and weekly summaries.
 
-## 1. Get Webhook URLs
+## Configuration
 
-For each agent you created in Dust, go to the agent's **Triggers** tab and copy the webhook URL. It looks something like:
+Add these to your `.env`:
 
 ```
-https://dust.tt/api/v1/w/<workspace>/agents/<agent-id>/webhook/<trigger-name>
+DUST_API_KEY=sk-your-api-key-here
+DUST_WORKSPACE_ID=your-workspace-id
+DUST_AGENT_ID=dust          # optional, defaults to "dust" global agent
 ```
 
-## 2. Set Environment Variables
+### Where to find these values
 
-Paste each webhook URL into your `.env` file:
+1. Log in to [dust.tt](https://dust.tt)
+2. Go to **Settings > API Keys** to create/copy your API key
+3. Your **Workspace ID** is in the URL: `https://dust.tt/w/{WORKSPACE_ID}/...`
+4. **Agent ID** (optional): defaults to the `dust` global agent. If you create a custom agent, use its `sId` from the agent config page
 
-```env
-DUST_EMOTION_WEBHOOK=<Agent 1 webhook URL — emotion_interpreter>
-DUST_SAFETY_WEBHOOK=<Agent 2 webhook URL — safety_gate_rewrite>
-DUST_ADVISER_WEBHOOK=<Agent 3 webhook URL — parent_adviser>
-DUST_MISSIONS_WEBHOOK=<Agent 4 webhook URL — mission_suggestions>
-DUST_WEEKLY_SUMMARY_WEBHOOK=<Agent 5 webhook URL — weekly_summary>
-```
+## How it works
 
-Restart the dev server after updating `.env`.
+The app sends structured prompts to Dust via the Conversations API with `blocking: true`, which means:
+- Each call creates a short-lived conversation
+- The agent processes the prompt and returns a synchronous response
+- The response is parsed as JSON matching the expected schema
 
-## 3. Agent-Specific Notes
+### Agent roles
 
-### Agent 1 — Emotion Interpreter
+| Role | Purpose | Fallback |
+|------|---------|----------|
+| **Emotion Interpreter** | Analyzes child's mood from messages | Returns neutral mood |
+| **Safety Gate** | Reviews AI draft replies for policy compliance | Passes draft through unchanged |
+| **Parent Adviser** | Answers parent questions about child wellbeing | Falls back to Gemini |
+| **Mission Suggester** | Creates fun educational missions | Requires Dust |
+| **Weekly Summary** | Generates weekly reports for parents | Requires Dust |
 
-Your config is correct. One small note:
+### Fallback behavior
 
-**`moodHistory`**: Our app sends this as a flat string array (`["happy", "neutral", "sad"]`) rather than `{date, dominantMood}` objects. Your agent instructions say "array of { date, dominantMood }".
+- **Emotion & Safety**: If Dust is not configured (no API key), these fall back to safe defaults so the chat pipeline still works
+- **Adviser**: Falls back to Gemini if Dust fails
+- **Missions & Weekly Summary**: Require Dust to be configured
 
-**Fix in Dust instructions** — change line:
-```
-- moodHistory: array of { date: string, dominantMood: string }
-```
-to:
-```
-- moodHistory: array of strings (e.g. ["happy", "neutral", "excited"])
-```
+## Custom Agents (optional)
 
-**`activeMission`**: We send the mission title as a string (or null), which matches your schema.
+For better results, you can create dedicated agents in your Dust workspace:
 
-Everything else matches.
+1. Create a new agent in Dust with specific instructions for each role
+2. Set the agent's `sId` as `DUST_AGENT_ID` in `.env`, or create separate agents and modify the code to use different agent IDs per role
 
----
-
-### Agent 2 — Safety Gate + Rewrite
-
-Your config is correct. No changes needed.
-
-Our app sends:
-- `child: { name, age }` — matches
-- `kidMessage` — matches
-- `assistantDraft` — matches
-- `conversationHistory: [{ role, text }]` — matches
-- `policy: { disallowed: [...] }` — matches
-
----
-
-### Agent 3 — Parent Adviser
-
-Your config is correct. Two small notes:
-
-**`missions`**: Your agent instructions expect a `missions` array, but our app currently sends an empty array `[]` for this field. This is fine — missions data is available elsewhere and will be wired in when the parent adviser feature is fully built out.
-
-**`recentChats`**: We send `{ role, text, createdAt, mood, topics }` which matches your schema.
-
----
-
-### Agent 4 — Mission Suggestions
-
-Your config is correct. One small note:
-
-**`currentMissions`**: Your agent instructions expect `string[]`, and we send an array of mission title strings. This matches.
-
----
-
-### Agent 5 — Weekly Summary
-
-Your config is correct. No changes needed.
-
----
-
-## 4. Testing
-
-Once webhooks are set, chat with a character. You should see:
-- **Emotion analysis** logged per message (mood, triggers, tone guidance)
-- **Safety gate** checking each Gemini reply before it reaches the child
-- Fallback mode is used when webhooks are not set (neutral mood, draft passed through)
-
-To test parent-facing agents (Adviser, Missions, Weekly Summary), use the corresponding parent dashboard pages.
-
-## 5. Troubleshooting
-
-| Symptom | Fix |
-|---|---|
-| `DUST_EMOTION_WEBHOOK not configured` | Webhook URL missing from `.env` — chat still works with fallback |
-| `Dust webhook error (401)` | Check that the webhook URL is correct and your Dust workspace allows API access |
-| `Dust webhook error (422)` | Input format mismatch — check the agent's structured response format |
-| Agent returns unexpected JSON shape | Verify the structured response format in Dust matches the schemas in this doc |
+The default `dust` global agent works well since each call includes a detailed system prompt describing the expected role and output format.

@@ -115,6 +115,11 @@ export async function runChatPipeline(
 
   const dustB = await runSafetyGate(dustBInput);
 
+  if (!dustB.finalReply) {
+    console.warn("[chatPipeline] dustB.finalReply is empty, falling back to Gemini draft");
+    dustB.finalReply = draft;
+  }
+
   const flags = {
     rewritten: !dustB.isCompliant || !!dustB.rewriteReason,
     escalated: dustB.escalate !== "NONE",
