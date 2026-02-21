@@ -46,7 +46,7 @@ export async function textToSpeech(
 export async function speechToText(audioBuffer: ArrayBuffer): Promise<string> {
   const formData = new FormData();
   formData.append(
-    "audio",
+    "file",
     new Blob([audioBuffer], { type: "audio/webm" }),
     "audio.webm"
   );

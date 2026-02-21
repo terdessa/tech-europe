@@ -178,65 +178,73 @@ export default function KidChatPage() {
 
       {/* Header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-gold-500/10 bg-ink-900/80 backdrop-blur-sm">
-        <button
-          onClick={() => router.push(`/kid/${childId}/home`)}
-          className="text-parchment-400 hover:text-gold-400 transition-colors font-cinzel text-sm"
+        <OrnateButton
+          size="sm"
+          variant="ghost"
+          onClick={() => router.push("/kid/library")}
+          className="font-cinzel text-sm"
         >
-          ←
-        </button>
-        <div className="w-10 h-10 rounded-full border border-gold-500/30 bg-ink-700/60 flex items-center justify-center overflow-hidden">
-          {child.characterImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={child.characterImageUrl} alt={child.characterName} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-sm font-cinzel font-bold text-gold-400">
-              {getInitials(child.characterName)}
-            </span>
-          )}
-        </div>
-        <div className="flex-1">
-          <h2 className="font-quattro font-bold text-parchment-200 text-sm">{child.characterName}</h2>
+          ← My Characters
+        </OrnateButton>
+        <div className="flex-1 flex items-center justify-center gap-2">
           {isSpeaking && <AudioWaveform isActive className="h-4" />}
         </div>
-        <OrnateButton size="sm" variant="ghost" onClick={() => router.push("/kid/library")}>
-          Library
-        </OrnateButton>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-4 pt-4">
+      {/* Messages + centered character image */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-4 pt-4 flex flex-col items-center">
+        {/* Centered character image + name */}
+        <div className="flex-shrink-0 flex flex-col items-center my-4">
+          <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-2 border-gold-500/30 bg-ink-700/60 flex items-center justify-center overflow-hidden">
+            {child.characterImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={child.characterImageUrl}
+                alt={child.characterName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-4xl font-cinzel font-bold text-gold-400">
+                {getInitials(child.characterName)}
+              </span>
+            )}
+          </div>
+          <p className="mt-2 font-cinzel font-semibold text-parchment-200 text-lg">
+            {child.characterName}
+          </p>
+        </div>
+
         {messages.length === 0 && !isLoading && (
-          <motion.div className="text-center py-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <motion.div className="text-center py-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <p className="text-parchment-500 font-crimson text-lg">
-              Say hi to {child.characterName}!
+              Say hi!
             </p>
           </motion.div>
         )}
 
-        {messages.map((msg, i) => (
-          <motion.div
-            key={i}
-            className={`flex mb-3 ${msg.role === "kid" ? "justify-end" : "justify-start"}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                msg.role === "kid"
-                  ? "bg-gold-500/20 text-parchment-200 border border-gold-500/20 rounded-br-sm"
-                  : "bg-ink-800/80 text-parchment-300 border border-ink-600/50 rounded-bl-sm"
-              }`}
+        <div className="w-full max-w-2xl space-y-3 mt-2">
+          {messages.map((msg, i) => (
+            <motion.div
+              key={i}
+              className={`flex ${msg.role === "kid" ? "justify-end" : "justify-start"}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              {msg.role === "assistant" && (
-                <p className="text-xs font-cinzel text-gold-500 mb-1">{child.characterName}</p>
-              )}
-              <p className="font-crimson text-sm leading-relaxed">{msg.content}</p>
-            </div>
-          </motion.div>
-        ))}
+              <div
+                className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                  msg.role === "kid"
+                    ? "bg-gold-500/20 text-parchment-200 border border-gold-500/20 rounded-br-sm"
+                    : "bg-ink-800/80 text-parchment-300 border border-ink-600/50 rounded-bl-sm"
+                }`}
+              >
+                <p className="font-crimson text-sm leading-relaxed">{msg.content}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
 
         {isLoading && (
-          <div className="flex justify-start mb-3">
+          <div className="flex justify-start w-full max-w-2xl mt-3">
             <div className="bg-ink-800/80 border border-ink-600/50 rounded-lg rounded-bl-sm px-4 py-3">
               <motion.div
                 className="flex gap-1"

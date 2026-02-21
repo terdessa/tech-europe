@@ -9,15 +9,39 @@ interface ParentGateProps {
   onPass: () => void;
   onCancel: () => void;
   requirePin?: boolean;
+  /** When requirePin is true, called to verify PIN before onPass. Return true to allow pass. */
+  onVerifyPin?: (pin: string) => Promise<boolean>;
 }
 
-export default function ParentGate({ isOpen, onPass, onCancel, requirePin = false }: ParentGateProps) {
+export default function ParentGate({ isOpen, onPass, onCancel, requirePin = false, onVerifyPin }: ParentGateProps) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (requirePin) {
-      if (pin.length < 4) { setError("Please enter your 4-digit PIN"); return; }
+      if (pin.length < 4) {
+        setError("Please enter your 4-digit PIN");
+        return;
+      }
+      if (onVerifyPin) {
+        setVerifying(true);
+        setError("");
+        try {
+          const ok = await onVerifyPin(pin);
+          if (ok) {
+            setPin("");
+            onPass();
+          } else {
+            setError("Invalid PIN");
+          }
+        } catch {
+          setError("Something went wrong");
+        } finally {
+          setVerifying(false);
+        }
+        return;
+      }
       onPass();
     } else {
       onPass();
@@ -66,9 +90,9 @@ export default function ParentGate({ isOpen, onPass, onCancel, requirePin = fals
             )}
 
             <div className="flex gap-3">
-              <OrnateButton variant="ghost" onClick={onCancel} className="flex-1">Cancel</OrnateButton>
-              <OrnateButton variant="primary" onClick={handleSubmit} className="flex-1">
-                {requirePin ? "Unlock" : "Hand to Child"}
+              <OrnateButton variant="ghost" onClick={onCancel} className="flex-1" disabled={verifying}>Cancel</OrnateButton>
+              <OrnateButton variant="primary" onClick={() => void handleSubmit()} className="flex-1" disabled={verifying}>
+                {verifying ? "Checking..." : requirePin ? "Unlock" : "Hand to Child"}
               </OrnateButton>
             </div>
           </motion.div>

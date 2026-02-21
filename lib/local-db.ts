@@ -86,6 +86,34 @@ export function dbCreateChild(data: Record<string, unknown>): string {
   return id;
 }
 
+const ALLOWED_CHILD_UPDATE_KEYS = [
+  "name",
+  "age",
+  "interests",
+  "language",
+  "communicationLevel",
+  "personalityType",
+  "sensitivities",
+  "favoriteColor",
+  "characterImageUrl",
+] as const;
+
+export function dbSetChild(
+  childId: string,
+  data: Record<string, unknown>
+): void {
+  const db = loadDb();
+  const existing = db.children[childId];
+  if (!existing) return;
+
+  const filtered: Record<string, unknown> = {};
+  for (const key of ALLOWED_CHILD_UPDATE_KEYS) {
+    if (key in data) filtered[key] = data[key];
+  }
+  db.children[childId] = { ...existing, ...filtered };
+  saveDb(db);
+}
+
 // ─── Messages ─────────────────────────────────────────
 export function dbAddMessage(
   childId: string,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
 import { createChild } from "@/lib/db-client";
@@ -42,9 +42,15 @@ const SENSITIVITY_OPTIONS = [
 
 export default function AddCharacterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isQuick = searchParams.get("quick") === "1";
   const { uid, setChildren } = useAppStore();
-  const [step, setStep] = useState<FormStep>("info");
+  const [step, setStep] = useState<FormStep | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (step === null) setStep(isQuick ? "character" : "info");
+  }, [isQuick, step]);
 
   const [childName, setChildName] = useState("");
   const [childAge, setChildAge] = useState(6);
@@ -110,14 +116,20 @@ export default function AddCharacterPage() {
     });
   }
 
-  async function createSingleCharacter(name: string, gender?: CharacterGender) {
+  async function createSingleCharacter(
+    name: string,
+    gender?: CharacterGender,
+    overrideChildName?: string,
+    overrideChildAge?: number,
+    overrideInterests?: string[]
+  ) {
     const res = await fetch("/api/character/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        childName,
-        childAge,
-        childInterests: interests,
+        childName: overrideChildName ?? childName,
+        childAge: overrideChildAge ?? childAge,
+        childInterests: overrideInterests ?? interests,
         characterName: name,
         characterGender: gender,
       }),
@@ -135,12 +147,17 @@ export default function AddCharacterPage() {
     setError("");
     setStep("creating");
 
+    const effectiveChildAge = isQuick ? 6 : childAge;
+    const effectiveInterests = isQuick ? [] : interests;
+    const effectiveChildNameForApi = isQuick
+      ? (characterMode === "custom" ? characterName : "Child")
+      : childName;
+
     try {
       const childBase = {
         parentId: uid,
-        name: childName,
-        age: childAge,
-        interests,
+        age: effectiveChildAge,
+        interests: effectiveInterests,
         communicationLevel,
         personalityType,
         sensitivities,
@@ -148,9 +165,10 @@ export default function AddCharacterPage() {
       };
 
       if (characterMode === "custom") {
-        const data = await createSingleCharacter(characterName);
+        const data = await createSingleCharacter(characterName, undefined, effectiveChildNameForApi, effectiveChildAge, effectiveInterests);
         await createChild({
           ...childBase,
+          name: isQuick ? characterName : childName,
           characterName,
           characterInfo: data.characterInfo,
           characterImageUrl: data.characterImageUrl,
@@ -159,9 +177,10 @@ export default function AddCharacterPage() {
         const selected = Array.from(selectedMediaChars);
         for (const idx of selected) {
           const mc = mediaCharacters[idx];
-          const data = await createSingleCharacter(mc.name, mc.gender);
+          const data = await createSingleCharacter(mc.name, mc.gender, effectiveChildNameForApi, effectiveChildAge, effectiveInterests);
           await createChild({
             ...childBase,
+            name: isQuick ? mc.name : childName,
             characterName: mc.name,
             characterInfo: data.characterInfo,
             characterImageUrl: data.characterImageUrl,
@@ -196,9 +215,17 @@ export default function AddCharacterPage() {
       </nav>
 
       <div className="relative z-10 max-w-lg mx-auto px-6 py-8">
-        <IllustratedHeader title="Add a Character" subtitle="Create a new story friend!" />
+        <IllustratedHeader
+          title="Add a Character"
+          subtitle={isQuick ? "Type a character name or pick from a cartoon, movie, or book." : "Create a new story friend!"}
+        />
 
         <AnimatePresence mode="wait">
+          {step === null && (
+            <motion.div key="init" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center py-12">
+              <QuillLoading text="Loading..." />
+            </motion.div>
+          )}
           {step === "info" && (
             <motion.div key="info" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
               <ParchmentCard className="p-8">
@@ -363,7 +390,7 @@ export default function AddCharacterPage() {
                     />
                     <p className="text-xs text-parchment-600 font-crimson -mt-2">
                       We&apos;ll create a unique, safe character inspired by this name
-                      {interests.length > 0 && ` who shares ${childName}'s love of ${interests.slice(0, 3).join(", ")}`}.
+                      {!isQuick && interests.length > 0 && ` who shares ${childName}'s love of ${interests.slice(0, 3).join(", ")}`}.
                     </p>
 
                     {error && (
@@ -373,7 +400,14 @@ export default function AddCharacterPage() {
                     )}
 
                     <div className="flex gap-3">
-                      <OrnateButton type="button" variant="ghost" onClick={() => setStep("interests")} className="flex-1">Back</OrnateButton>
+                      <OrnateButton
+                        type="button"
+                        variant="ghost"
+                        onClick={() => (isQuick ? router.push("/kid/library") : setStep("interests"))}
+                        className="flex-1"
+                      >
+                        Back
+                      </OrnateButton>
                       <OrnateButton type="submit" variant="primary" size="lg" className="flex-1">Create Character</OrnateButton>
                     </div>
                   </form>
@@ -449,7 +483,14 @@ export default function AddCharacterPage() {
                     )}
 
                     <div className="flex gap-3">
-                      <OrnateButton type="button" variant="ghost" onClick={() => setStep("interests")} className="flex-1">Back</OrnateButton>
+                      <OrnateButton
+                        type="button"
+                        variant="ghost"
+                        onClick={() => (isQuick ? router.push("/kid/library") : setStep("interests"))}
+                        className="flex-1"
+                      >
+                        Back
+                      </OrnateButton>
                       <OrnateButton
                         variant="primary"
                         size="lg"
