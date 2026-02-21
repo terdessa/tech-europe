@@ -1,23 +1,40 @@
+const CODEWORDS_BASE = "https://runtime.codewords.ai";
+
 interface CodeWordsPayload {
   [key: string]: unknown;
 }
 
+function getApiKey(): string {
+  return process.env.CODEWORDS_API_KEY ?? "";
+}
+
 async function triggerCodeWords(
-  webhookUrl: string,
+  serviceId: string,
   payload: CodeWordsPayload
 ): Promise<{ success: boolean; error?: string }> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.warn("[codewords] No API key configured — skipping");
+    return { success: true };
+  }
+
   try {
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(`${CODEWORDS_BASE}/run/${serviceId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
       const body = await res.text();
+      console.error(`[codewords] Error (${res.status}):`, body.slice(0, 200));
       return { success: false, error: `CodeWords error (${res.status}): ${body}` };
     }
 
+    console.log(`[codewords] Service ${serviceId} triggered successfully`);
     return { success: true };
   } catch (err) {
     return {
@@ -36,9 +53,9 @@ export async function sendAlert(payload: {
   parentMessage: string;
   timestamp: string;
 }) {
-  const url = process.env.CODEWORDS_ALERT_WEBHOOK;
-  if (!url) return SKIPPED;
-  return triggerCodeWords(url, payload);
+  const serviceId = process.env.CODEWORDS_ALERT_SERVICE_ID;
+  if (!serviceId) return SKIPPED;
+  return triggerCodeWords(serviceId, payload);
 }
 
 export async function sendMissionNotification(payload: {
@@ -47,9 +64,9 @@ export async function sendMissionNotification(payload: {
   missionDescription: string;
   source: string;
 }) {
-  const url = process.env.CODEWORDS_MISSION_WEBHOOK;
-  if (!url) return SKIPPED;
-  return triggerCodeWords(url, payload);
+  const serviceId = process.env.CODEWORDS_MISSION_SERVICE_ID;
+  if (!serviceId) return SKIPPED;
+  return triggerCodeWords(serviceId, payload);
 }
 
 export async function sendWeeklyDigest(payload: {
@@ -60,9 +77,9 @@ export async function sendWeeklyDigest(payload: {
   concerns: string[];
   nextSteps: string[];
 }) {
-  const url = process.env.CODEWORDS_WEEKLY_DIGEST_WEBHOOK;
-  if (!url) return SKIPPED;
-  return triggerCodeWords(url, payload);
+  const serviceId = process.env.CODEWORDS_WEEKLY_DIGEST_SERVICE_ID;
+  if (!serviceId) return SKIPPED;
+  return triggerCodeWords(serviceId, payload);
 }
 
 export async function sendReengagement(payload: {
@@ -70,9 +87,9 @@ export async function sendReengagement(payload: {
   childName: string;
   daysSinceLastChat: number;
 }) {
-  const url = process.env.CODEWORDS_REENGAGE_WEBHOOK;
-  if (!url) return SKIPPED;
-  return triggerCodeWords(url, payload);
+  const serviceId = process.env.CODEWORDS_REENGAGE_SERVICE_ID;
+  if (!serviceId) return SKIPPED;
+  return triggerCodeWords(serviceId, payload);
 }
 
 export async function sendMonthlyReport(payload: {
@@ -80,7 +97,7 @@ export async function sendMonthlyReport(payload: {
   childName: string;
   reportData: Record<string, unknown>;
 }) {
-  const url = process.env.CODEWORDS_MONTHLY_REPORT_WEBHOOK;
-  if (!url) return SKIPPED;
-  return triggerCodeWords(url, payload);
+  const serviceId = process.env.CODEWORDS_MONTHLY_REPORT_SERVICE_ID;
+  if (!serviceId) return SKIPPED;
+  return triggerCodeWords(serviceId, payload);
 }

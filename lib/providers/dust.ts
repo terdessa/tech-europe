@@ -12,29 +12,36 @@ import type {
 
 const DUST_API_KEY = () => process.env.DUST_API_KEY ?? "";
 const DUST_WORKSPACE = () => process.env.DUST_WORKSPACE_ID ?? "";
-const DUST_AGENT = () => process.env.DUST_AGENT_ID ?? "dust";
+const DEFAULT_AGENT = () => process.env.DUST_AGENT_ID ?? "dust";
+
+function getAgentId(role: string): string {
+  const envKey = `DUST_${role.toUpperCase()}_AGENT_ID`;
+  return process.env[envKey] || DEFAULT_AGENT();
+}
 
 function isDustConfigured(): boolean {
   return !!DUST_API_KEY() && !!DUST_WORKSPACE();
 }
 
 /**
- * Calls the Dust Conversations API with blocking:true to get a synchronous response.
- * Parses the agent's reply as JSON matching TOutput.
+ * Sends a JSON payload to a dedicated Dust agent via the Conversations API.
+ * The agent has a structured response format configured, so we just send the input data.
  */
 async function callDustAgent<TOutput>(
-  prompt: string
+  payload: Record<string, unknown>,
+  role = "default"
 ): Promise<TOutput> {
   const apiKey = DUST_API_KEY();
   const workspace = DUST_WORKSPACE();
-  const agentId = DUST_AGENT();
+  const agentId = getAgentId(role);
+  console.log(`[dust] Calling agent "${agentId}" for role "${role}"`);
 
   const body = {
     blocking: true,
     visibility: "unlisted",
-    title: "lumio-pipeline",
+    title: `lumio-${role}`,
     message: {
-      content: prompt,
+      content: JSON.stringify(payload),
       mentions: [{ configurationId: agentId }],
       context: {
         timezone: "UTC",
@@ -66,7 +73,6 @@ async function callDustAgent<TOutput>(
 
   const data = await res.json();
 
-  // Extract agent message content from conversation.content[1].value[0].content
   const contentArr = data?.conversation?.content;
   if (!Array.isArray(contentArr) || contentArr.length < 2) {
     throw new Error("[dust] Unexpected conversation structure");
@@ -80,12 +86,13 @@ async function callDustAgent<TOutput>(
     throw new Error("[dust] Agent returned empty content");
   }
 
+  console.log(`[dust] Agent "${agentId}" raw response:`, rawContent.slice(0, 200));
   const cleaned = rawContent.replace(/```json\n?|\n?```/g, "").trim();
 
   try {
     return JSON.parse(cleaned) as TOutput;
   } catch {
-    console.warn("[dust] Failed to parse agent JSON, raw:", cleaned.slice(0, 300));
+    console.warn("[dust] Failed to parse agent JSON, raw:", cleaned.slice(0, 500));
     throw new Error("[dust] Could not parse agent response as JSON");
   }
 }
@@ -120,6 +127,8 @@ function fallbackSafety(draft: string): DustSafetyGate {
 }
 
 // ─── Emotion Interpreter ──────────────────────────────
+// Agent: LumioEmotionInterpreter
+// Input: { child, currentMessage, recentMessages, moodHistory, activeMission }
 
 export async function analyzeEmotion(
   input: DustEmotionInput
@@ -130,30 +139,18 @@ export async function analyzeEmotion(
   }
 
   try {
-    const prompt = `You are a child emotion interpreter for a kids' AI chat app called Lumio.
-Analyze the following data and respond ONLY with valid JSON matching this schema:
-{
-  "currentMood": string,
-  "confidence": number (0-1),
-  "recentTriggers": string[],
-  "weeklyTrend": "improving" | "stable" | "declining",
-  "recommendedTone": string,
-  "suggestedApproach": string,
-  "warningFlag": boolean,
-  "riskLevel": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-  "categories": string[],
-  "parentSummary": string
-}
+    const payload = {
+      child: { name: input.childProfile.name, age: input.childProfile.age },
+      currentMessage: input.currentMessage,
+      recentMessages: input.lastMessages.slice(-10).map((m) => ({
+        role: m.role,
+        text: m.content,
+      })),
+      moodHistory: input.moodHistory ?? [],
+      activeMission: input.activeMission?.title ?? null,
+    };
 
-Child: ${input.childProfile.name}, age ${input.childProfile.age}
-Current message: "${input.currentMessage}"
-Recent messages: ${JSON.stringify(input.lastMessages.slice(-10).map((m) => ({ role: m.role, text: m.content })))}
-Mood history: ${JSON.stringify(input.moodHistory ?? [])}
-Active mission: ${input.activeMission?.title ?? "none"}
-
-Respond ONLY with the JSON object, no markdown, no explanation.`;
-
-    return await callDustAgent<DustEmotionAnalysis>(prompt);
+    return await callDustAgent<DustEmotionAnalysis>(payload, "emotion");
   } catch (e) {
     console.warn("[dust] Emotion analysis failed, using fallback:", e);
     return fallbackEmotion();
@@ -161,6 +158,8 @@ Respond ONLY with the JSON object, no markdown, no explanation.`;
 }
 
 // ─── Safety Gate ──────────────────────────────────────
+// Agent: SafetyGate
+// Input: { child, kidMessage, assistantDraft, conversationHistory, policy }
 
 export async function runSafetyGate(
   input: DustSafetyInput
@@ -171,31 +170,21 @@ export async function runSafetyGate(
   }
 
   try {
-    const prompt = `You are a child safety gate for a kids' AI chat app called Lumio.
-Review the assistant's draft reply and check it against safety policies.
-Respond ONLY with valid JSON matching this schema:
-{
-  "isCompliant": boolean,
-  "injectionAttempt": boolean,
-  "violations": string[],
-  "riskLevel": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-  "categories": string[],
-  "finalReply": string (the safe version of the reply),
-  "rewriteReason": string | null,
-  "escalate": "NONE" | "PARENT" | "ADMIN"
-}
+    const payload = {
+      child: {
+        name: input.childProfile.name,
+        age: input.childProfile.age,
+      },
+      kidMessage: input.kidMessage,
+      assistantDraft: input.assistantDraft,
+      conversationHistory: input.lastMessages.slice(-5).map((m) => ({
+        role: m.role,
+        text: m.content,
+      })),
+      policy: { disallowed: input.policyRules },
+    };
 
-Child: ${input.childProfile.name}, age ${input.childProfile.age}, character: ${input.childProfile.characterName}
-Kid's message: "${input.kidMessage}"
-Assistant's draft: "${input.assistantDraft}"
-Recent conversation: ${JSON.stringify(input.lastMessages.slice(-5).map((m) => ({ role: m.role, text: m.content })))}
-Policy rules (disallowed): ${JSON.stringify(input.policyRules)}
-
-If the draft is safe, set isCompliant=true and finalReply to the original draft unchanged.
-If unsafe, rewrite it in finalReply and explain in rewriteReason.
-Respond ONLY with the JSON object, no markdown, no explanation.`;
-
-    return await callDustAgent<DustSafetyGate>(prompt);
+    return await callDustAgent<DustSafetyGate>(payload, "safety");
   } catch (e) {
     console.warn("[dust] Safety gate failed, using fallback:", e);
     return fallbackSafety(input.assistantDraft);
@@ -203,70 +192,60 @@ Respond ONLY with the JSON object, no markdown, no explanation.`;
 }
 
 // ─── Parent Adviser ───────────────────────────────────
+// Agent: LumioParentAdviser
+// Input: { question, child, dailySummaries, recentChats, missions }
 
 export async function askAdviser(
   input: DustAdviserInput
 ): Promise<DustAdviserOutput> {
-  const prompt = `You are a supportive parenting adviser for a kids' AI chat app called Lumio.
-A parent is asking about their child. Respond ONLY with valid JSON matching this schema:
-{
-  "answer": string (detailed, empathetic advice, 2-4 paragraphs),
-  "suggestedActions": string[] (2-3 concrete action items),
-  "suggestedScripts": string[] (1-2 example phrases the parent could use)
-}
+  const payload = {
+    question: input.question,
+    child: { name: input.childProfile.name, age: input.childProfile.age },
+    dailySummaries: input.last30DaysSummaries,
+    recentChats: input.last50Messages.slice(-20).map((m) => ({
+      role: m.role,
+      text: m.content,
+      createdAt: m.createdAt,
+      mood: m.mood ?? null,
+      topics: m.topics ?? [],
+    })),
+    missions: [],
+  };
 
-Child: ${input.childProfile.name}, age ${input.childProfile.age}, character: ${input.childProfile.characterName}
-Recent chats: ${JSON.stringify(input.last50Messages.slice(-15).map((m) => ({ role: m.role, text: m.content, mood: m.mood })))}
-
-Parent's question: "${input.question}"
-
-Respond ONLY with the JSON object, no markdown, no explanation.`;
-
-  return callDustAgent<DustAdviserOutput>(prompt);
+  return callDustAgent<DustAdviserOutput>(payload, "adviser");
 }
 
 // ─── Mission Suggestions ──────────────────────────────
+// Agent: LumioMissionSuggestions
+// Input: { child, characterName, recentTopics, recentMoods, currentMissions }
 
 export async function suggestMissions(
   input: DustMissionsInput
 ): Promise<DustMissionsOutput> {
-  const prompt = `You are a mission creator for a kids' AI chat app called Lumio.
-Suggest fun, educational missions for a child based on their interests and recent conversations.
-Respond ONLY with valid JSON matching this schema:
-{
-  "missions": [{ "title": string, "description": string, "category": string, "difficulty": "easy"|"medium"|"hard" }]
-}
+  const payload = {
+    child: { name: input.childProfile.name, age: input.childProfile.age },
+    characterName: input.childProfile.characterName,
+    recentTopics: input.recentTopics,
+    recentMoods: input.recentMoods,
+    currentMissions: input.currentMissions.map((m) => m.title),
+  };
 
-Child: ${input.childProfile.name}, age ${input.childProfile.age}, character: ${input.childProfile.characterName}
-Recent topics: ${JSON.stringify(input.recentTopics)}
-Recent moods: ${JSON.stringify(input.recentMoods)}
-Current missions (avoid duplicates): ${JSON.stringify(input.currentMissions.map((m) => m.title))}
-
-Suggest 3-5 new missions. Respond ONLY with the JSON object, no markdown, no explanation.`;
-
-  return callDustAgent<DustMissionsOutput>(prompt);
+  return callDustAgent<DustMissionsOutput>(payload, "missions");
 }
 
 // ─── Weekly Summary ───────────────────────────────────
+// Agent: LumioWeeklySummary
+// Input: { child, dailySummaries, notableEvents, missions }
 
 export async function generateWeeklySummary(
   input: DustWeeklySummaryInput
 ): Promise<DustWeeklySummaryOutput> {
-  const prompt = `You are a weekly report writer for a kids' AI chat app called Lumio.
-Generate a warm, insightful weekly summary for a parent. Respond ONLY with valid JSON matching this schema:
-{
-  "narrative": string (3-5 paragraph summary of the week),
-  "highlights": string[] (3-5 key highlights),
-  "concerns": string[] (any concerns, empty if none),
-  "recommendations": string[] (2-3 actionable recommendations)
-}
+  const payload = {
+    child: input.child,
+    dailySummaries: input.last7DaySummaries,
+    notableEvents: input.notableEvents,
+    missions: input.missionStatus,
+  };
 
-Child: ${input.child.name}, age ${input.child.age}
-Daily summaries: ${JSON.stringify(input.last7DaySummaries)}
-Notable events: ${JSON.stringify(input.notableEvents)}
-Mission status: ${JSON.stringify(input.missionStatus)}
-
-Respond ONLY with the JSON object, no markdown, no explanation.`;
-
-  return callDustAgent<DustWeeklySummaryOutput>(prompt);
+  return callDustAgent<DustWeeklySummaryOutput>(payload, "weekly");
 }
