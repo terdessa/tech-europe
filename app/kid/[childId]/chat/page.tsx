@@ -22,8 +22,13 @@ export default function KidChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [inputText, setInputText] = useState("");
+  const [micError, setMicError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (childId && uid) {
@@ -67,7 +72,7 @@ export default function KidChatPage() {
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        triggerTTS(data.assistantMessage.content);
+        triggerTTS(data.assistantMessage.content, child.characterInfo.gender);
       } catch {
         const errorMsg: Message = {
           role: "assistant",
@@ -104,6 +109,59 @@ export default function KidChatPage() {
     [isLoading, sendMessage]
   );
 
+  const startRecording = useCallback(async () => {
+    setMicError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (audioChunksRef.current.length > 0) {
+          const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          handleAudio(blob);
+        }
+        setIsListening(false);
+      };
+
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsListening(true);
+
+      stopTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current?.state === "recording") {
+          mediaRecorderRef.current.stop();
+        }
+      }, 15000);
+    } catch {
+      setMicError("Microphone access denied. Please enable it in your browser settings.");
+      setIsListening(false);
+    }
+  }, [handleAudio]);
+
+  const stopRecording = useCallback(() => {
+    if (stopTimerRef.current) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  const toggleMic = useCallback(() => {
+    if (isListening) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }, [isListening, startRecording, stopRecording]);
+
   if (!child) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -116,7 +174,7 @@ export default function KidChatPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <VoicePlayer onSpeakingChange={setIsSpeaking} />
+      <VoicePlayer onSpeakingChange={setIsSpeaking} gender={child.characterInfo.gender} />
 
       {/* Header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-gold-500/10 bg-ink-900/80 backdrop-blur-sm">
@@ -196,13 +254,14 @@ export default function KidChatPage() {
 
       {/* Composer */}
       <div className="border-t border-gold-500/10 bg-ink-900/80 backdrop-blur-sm px-4 py-3">
+        {micError && (
+          <p className="text-red-400 text-xs font-crimson mb-2">{micError}</p>
+        )}
         <div className="flex items-center gap-3">
           {ageRule.composerMode === "voice-only" || ageRule.composerMode === "voice-and-text" ? (
             <MagicalMicButton
-              isListening={false}
-              onClick={() => {
-                /* Voice recording - simplified for now */
-              }}
+              isListening={isListening}
+              onClick={toggleMic}
               disabled={isLoading}
             />
           ) : null}

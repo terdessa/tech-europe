@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { textToSpeech } from "@/lib/providers/elevenlabs";
+import type { CharacterGender } from "@/types/domain";
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const { text, gender } = await req.json() as { text: string; gender?: CharacterGender };
 
     if (!text || typeof text !== "string") {
       return NextResponse.json(
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const audioBuffer = await textToSpeech(text);
+    const audioBuffer = await textToSpeech(text, gender || "female");
 
     return new NextResponse(audioBuffer, {
       headers: {

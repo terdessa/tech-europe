@@ -1,5 +1,6 @@
 import type {
   CharacterInfo,
+  CharacterGender,
   DustEmotionAnalysis,
   DustSafetyGate,
   Message,
@@ -11,11 +12,27 @@ export interface CreateCharacterRequest {
   childAge: number;
   childInterests: string[];
   characterName: string;
+  characterGender?: CharacterGender;
 }
 
 export interface CreateCharacterResponse {
   characterInfo: CharacterInfo;
   characterImageUrl?: string;
+}
+
+// POST /api/character/analyze-media
+export interface AnalyzeMediaRequest {
+  mediaTitle: string;
+  mediaType: "cartoon" | "movie" | "book" | "game";
+}
+
+export interface AnalyzeMediaResponse {
+  title: string;
+  characters: {
+    name: string;
+    description: string;
+    gender: CharacterGender;
+  }[];
 }
 
 // POST /api/chat
@@ -47,6 +64,7 @@ export interface STTResponse {
 // POST /api/voice/tts
 export interface TTSRequest {
   text: string;
+  gender?: CharacterGender;
 }
 
 // Dust agent payloads

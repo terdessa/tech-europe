@@ -1,12 +1,14 @@
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
+import type { CharacterGender } from "@/types/domain";
 
 interface VoicePlayerProps {
   onSpeakingChange: (isSpeaking: boolean) => void;
+  gender?: CharacterGender;
 }
 
-export default function VoicePlayer({ onSpeakingChange }: VoicePlayerProps) {
+export default function VoicePlayer({ onSpeakingChange, gender }: VoicePlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -27,12 +29,12 @@ export default function VoicePlayer({ onSpeakingChange }: VoicePlayerProps) {
     };
   }, [onSpeakingChange]);
 
-  const playTTS = useCallback(async (text: string) => {
+  const playTTS = useCallback(async (text: string, voiceGender?: CharacterGender) => {
     try {
       const res = await fetch("/api/voice/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, gender: voiceGender || gender || "female" }),
       });
 
       if (!res.ok) throw new Error("TTS request failed");
@@ -48,9 +50,8 @@ export default function VoicePlayer({ onSpeakingChange }: VoicePlayerProps) {
       console.error("TTS playback error:", err);
       onSpeakingChange(false);
     }
-  }, [onSpeakingChange]);
+  }, [onSpeakingChange, gender]);
 
-  // Expose playTTS via a global for the chat page to call
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__lumioPlayTTS = playTTS;
     return () => {
@@ -61,9 +62,9 @@ export default function VoicePlayer({ onSpeakingChange }: VoicePlayerProps) {
   return null;
 }
 
-export function triggerTTS(text: string) {
+export function triggerTTS(text: string, gender?: CharacterGender) {
   const fn = (window as unknown as Record<string, unknown>).__lumioPlayTTS;
   if (typeof fn === "function") {
-    (fn as (text: string) => void)(text);
+    (fn as (text: string, gender?: CharacterGender) => void)(text, gender);
   }
 }

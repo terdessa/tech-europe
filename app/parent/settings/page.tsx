@@ -83,6 +83,24 @@ export default function SettingsPage() {
           {saving ? "Saving..." : saved ? "Saved!" : "Save Settings"}
         </OrnateButton>
       </div>
+
+      <ParchmentCard>
+        <h3 className="text-lg font-cinzel font-semibold text-red-400 mb-2">Danger Zone</h3>
+        <p className="text-sm text-parchment-500 font-crimson mb-4">
+          Reset the entire local database. This deletes all users, children, characters, messages, and analytics. This cannot be undone.
+        </p>
+        <OrnateButton
+          variant="ghost"
+          onClick={async () => {
+            if (!confirm("Are you sure? This will erase ALL data and log you out.")) return;
+            await fetch("/api/db/reset", { method: "POST" });
+            localStorage.clear();
+            window.location.href = "/login";
+          }}
+        >
+          <span className="text-red-400">Reset Database</span>
+        </OrnateButton>
+      </ParchmentCard>
     </div>
   );
 }

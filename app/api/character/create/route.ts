@@ -9,7 +9,7 @@ import type {
 export async function POST(req: NextRequest) {
   try {
     const body: CreateCharacterRequest = await req.json();
-    const { childName, childAge, childInterests, characterName } = body;
+    const { childName, childAge, childInterests, characterName, characterGender } = body;
 
     if (!childName || !childAge || !characterName) {
       return NextResponse.json(
@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
       childName,
       childAge,
       characterName,
-      childInterests || []
+      childInterests || [],
+      characterGender
     );
 
     let characterImageUrl: string | undefined;

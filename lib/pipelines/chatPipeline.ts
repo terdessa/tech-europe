@@ -27,7 +27,6 @@ export async function runChatPipeline(
   childId: string,
   kidMessage: string
 ): Promise<PipelineResult> {
-  // Step 1: Load child doc + recent messages + daily summaries
   const childDoc = dbGetChild(childId);
   if (!childDoc) throw new Error("Child not found");
   const child = childDoc as unknown as Child;
@@ -45,7 +44,6 @@ export async function runChatPipeline(
   const dailySummaries = getRecentDailySummaries(childId, 7);
   const moodHistory = dailySummaries.map((s) => s.data.dominantMood as string);
 
-  // Get active mission
   const activeMissions = dbGetActiveMissions(childId);
   const activeMission =
     activeMissions.length > 0
@@ -55,13 +53,11 @@ export async function runChatPipeline(
         }
       : null;
 
-  // Step 2: Store kid message
   const kidMsgId = dbAddMessage(childId, {
     role: "kid",
     content: kidMessage,
   });
 
-  // Step 3: Dust A — Emotion/Context Analysis
   const dustAInput: DustEmotionInput = {
     childProfile: {
       name: child.name,
@@ -76,29 +72,35 @@ export async function runChatPipeline(
 
   const dustA = await analyzeEmotion(dustAInput);
 
-  // Update kid message with mood data
   dbUpdateMessage(childId, kidMsgId, {
     mood: dustA.currentMood,
     confidence: dustA.confidence,
     topics: dustA.categories,
   });
 
-  // Step 4: Gemini Draft Reply
+  const childProfile = {
+    name: child.name,
+    age: child.age,
+    interests: child.interests || [],
+    communicationLevel: child.communicationLevel,
+    personalityType: child.personalityType,
+    sensitivities: child.sensitivities,
+    favoriteColor: child.favoriteColor,
+  };
+
   const draft = await generateChatReply(
     child.characterName,
     child.characterInfo,
-    child.age,
+    childProfile,
     kidMessage,
     recentMessages.map((m) => ({ role: m.role, content: m.content })),
     {
       recommendedTone: dustA.recommendedTone,
       suggestedApproach: dustA.suggestedApproach,
       currentMood: dustA.currentMood,
-    },
-    child.interests || []
+    }
   );
 
-  // Step 5: Dust B — Safety Gate + Rewrite
   const dustBInput: DustSafetyInput = {
     childProfile: {
       name: child.name,
@@ -113,7 +115,6 @@ export async function runChatPipeline(
 
   const dustB = await runSafetyGate(dustBInput);
 
-  // Step 6: Store assistant message with full audit data
   const flags = {
     rewritten: !dustB.isCompliant || !!dustB.rewriteReason,
     escalated: dustB.escalate !== "NONE",
@@ -134,7 +135,6 @@ export async function runChatPipeline(
     flags,
   });
 
-  // Step 7: Update daily analytics
   updateDailyAnalytics(
     childId,
     dustA.currentMood,
@@ -142,7 +142,6 @@ export async function runChatPipeline(
     dustA.confidence
   );
 
-  // Step 8: Handle escalation
   if (dustB.escalate !== "NONE") {
     dbAddAlert(childId, {
       riskLevel: dustB.riskLevel,
@@ -168,7 +167,6 @@ export async function runChatPipeline(
     }
   }
 
-  // Handle mission suggestion from Dust A
   if (dustA.suggestedMission) {
     dbAddMission(childId, {
       title: dustA.suggestedMission.title,

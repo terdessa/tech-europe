@@ -1,9 +1,12 @@
+export type CharacterGender = "male" | "female" | "neutral";
+
 export interface CharacterInfo {
   personality: string;
   speechStyle: string;
   keyTraits: string[];
   backstorySummary?: string;
   safeDepictionNote?: string;
+  gender: CharacterGender;
 }
 
 export interface DustEmotionAnalysis {
@@ -38,10 +41,15 @@ export type MissionStatus = "active" | "completed";
 export type MissionSource = "parent" | "dust";
 export type MessageRole = "kid" | "assistant";
 export type AlertStatus = "sent" | "failed";
+export type CommunicationLevel = "early" | "developing" | "fluent";
+export type PersonalityType = "shy" | "outgoing" | "curious" | "creative" | "calm";
 
 export interface User {
   email: string;
   displayName: string;
+  phone?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
   createdAt: string;
   passwordHash?: string;
   parentPinHash?: string;
@@ -58,6 +66,11 @@ export interface Child {
   name: string;
   age: number;
   interests: string[];
+  language?: string;
+  communicationLevel?: CommunicationLevel;
+  personalityType?: PersonalityType;
+  sensitivities?: string[];
+  favoriteColor?: string;
   characterName: string;
   characterInfo: CharacterInfo;
   characterImageUrl?: string;

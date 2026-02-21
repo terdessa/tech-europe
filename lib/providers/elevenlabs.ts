@@ -1,10 +1,23 @@
+import type { CharacterGender } from "@/types/domain";
+
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID!;
 const BASE_URL = "https://api.elevenlabs.io/v1";
 
-export async function textToSpeech(text: string): Promise<ArrayBuffer> {
+function getVoiceId(gender: CharacterGender = "female"): string {
+  if (gender === "male") {
+    return process.env.ELEVENLABS_VOICE_ID_MALE || "pNInz6obpgDQGcFmaJgB"; // default: Adam
+  }
+  return process.env.ELEVENLABS_VOICE_ID_FEMALE || "21m00Tcm4TlvDq8ikWAM"; // default: Rachel
+}
+
+export async function textToSpeech(
+  text: string,
+  gender: CharacterGender = "female"
+): Promise<ArrayBuffer> {
+  const voiceId = getVoiceId(gender);
+
   const res = await fetch(
-    `${BASE_URL}/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+    `${BASE_URL}/text-to-speech/${voiceId}`,
     {
       method: "POST",
       headers: {
