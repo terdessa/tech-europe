@@ -125,6 +125,7 @@ export interface DustMissionsOutput {
 }
 
 export interface DustWeeklySummaryInput {
+  child: { name: string; age: number };
   last7DaySummaries: Record<string, unknown>[];
   notableEvents: string[];
   missionStatus: { title: string; status: string }[];
