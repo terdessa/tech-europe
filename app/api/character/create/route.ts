@@ -28,9 +28,21 @@ export async function POST(req: NextRequest) {
 
     let characterImageUrl: string | undefined;
     try {
-      const imageUrl = await generateCharacterImage(characterName, characterInfo);
-      if (imageUrl) characterImageUrl = imageUrl;
-    } catch {
+      let imageUrl = await generateCharacterImage(characterName, characterInfo);
+      // Retry once if no image (often fixes first-request/cold-start failure during onboarding)
+      if (!imageUrl) {
+        console.warn("[character/create] First image attempt failed, retrying once...");
+        await new Promise((r) => setTimeout(r, 800));
+        imageUrl = await generateCharacterImage(characterName, characterInfo);
+      }
+      if (imageUrl) {
+        characterImageUrl = imageUrl;
+        console.log("[character/create] Image generated:", imageUrl);
+      } else {
+        console.warn("[character/create] No image generated for", characterName, "(check API key and server logs above)");
+      }
+    } catch (err) {
+      console.error("[character/create] Image generation error:", err);
       // Image generation is optional; continue without it
     }
 

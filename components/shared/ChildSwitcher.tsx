@@ -18,7 +18,7 @@ export default function ChildSwitcher() {
       >
         {children.map((child) => (
           <option key={child.id} value={child.id}>
-            {child.name}
+            {child.name === "Friend" && child.characterName ? child.characterName : child.name}
           </option>
         ))}
       </select>

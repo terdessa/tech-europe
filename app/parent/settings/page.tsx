@@ -9,8 +9,36 @@ export default function SettingsPage() {
   const { uid, displayName, children } = useAppStore();
   const [notifPrefs, setNotifPrefs] = useState({ emailWeekly: true, emailMonthly: true, alerts: true });
   const [pin, setPin] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
+  const [pinSaved, setPinSaved] = useState(false);
+  const [pinError, setPinError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  async function handleSetPin() {
+    if (!uid || pin.length < 4 || pin.length > 6) return;
+    setPinSaving(true);
+    setPinError("");
+    try {
+      const res = await fetch("/api/auth/set-parent-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, pin: pin.replace(/\D/g, "") }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setPinError(data.error || "Failed to set PIN");
+        return;
+      }
+      setPin("");
+      setPinSaved(true);
+      setTimeout(() => setPinSaved(false), 2000);
+    } catch {
+      setPinError("Something went wrong");
+    } finally {
+      setPinSaving(false);
+    }
+  }
 
   async function handleSave() {
     if (!uid) return;
@@ -60,22 +88,31 @@ export default function SettingsPage() {
 
       <ParchmentCard>
         <h3 className="text-lg font-cinzel font-semibold text-parchment-200 mb-4">Parent PIN</h3>
-        <p className="text-sm text-parchment-500 font-crimson mb-3">Set a PIN to protect access to kid chat mode.</p>
-        <div className="flex gap-3 items-center">
+        <p className="text-sm text-parchment-500 font-crimson mb-3">Set a PIN to protect access to the parent area from the kid library.</p>
+        <div className="flex gap-3 items-center flex-wrap">
           <input
             type="password"
             maxLength={6}
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => {
+              setPin(e.target.value.replace(/\D/g, ""));
+              setPinError("");
+            }}
             placeholder="4-6 digit PIN"
             className="bg-ink-800/80 border-2 border-gold-500/20 rounded-sm px-4 py-2.5
                        text-center text-lg tracking-[0.3em] font-cinzel w-40 text-parchment-200
                        focus:outline-none focus:border-gold-500/50 focus:ring-2 focus:ring-gold-500/10"
           />
-          <OrnateButton variant="ghost" size="sm" disabled={pin.length < 4} onClick={() => setPin("")}>
-            Set PIN
+          <OrnateButton
+            variant="primary"
+            size="sm"
+            disabled={pin.length < 4 || pinSaving}
+            onClick={handleSetPin}
+          >
+            {pinSaving ? "Saving..." : pinSaved ? "Saved!" : "Set PIN"}
           </OrnateButton>
         </div>
+        {pinError && <p className="text-red-400 text-sm font-crimson mt-2">{pinError}</p>}
       </ParchmentCard>
 
       <div className="flex gap-3">

@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 
 const navItems = [
   { href: "/parent/dashboard", label: "Dashboard", icon: "📊" },
+  { href: "/parent/kid-details", label: "Kid details", icon: "👤" },
   { href: "/parent/insights", label: "Insights", icon: "💡" },
   { href: "/parent/missions", label: "Missions", icon: "🎯" },
   { href: "/parent/history", label: "Chat History", icon: "💬" },

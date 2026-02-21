@@ -49,6 +49,18 @@ export async function createChild(
   return result.id;
 }
 
+export async function updateChild(
+  childId: string,
+  uid: string,
+  data: Partial<Pick<Child, "name" | "age" | "interests" | "language" | "communicationLevel" | "personalityType" | "sensitivities" | "favoriteColor" | "characterImageUrl">>
+): Promise<void> {
+  await api(`/api/db/children/${childId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uid, ...data }),
+  });
+}
+
 // ─── Messages ─────────────────────────────────────────
 export async function addMessage(
   childId: string,

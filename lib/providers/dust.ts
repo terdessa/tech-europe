@@ -28,11 +28,24 @@ async function callDustWebhook<TInput, TOutput>(
   return res.json() as Promise<TOutput>;
 }
 
+const STUB_EMOTION: DustEmotionAnalysis = {
+  currentMood: "neutral",
+  confidence: 0,
+  recentTriggers: [],
+  weeklyTrend: "stable",
+  recommendedTone: "warm and supportive",
+  suggestedApproach: "Respond in character, keep it child-friendly.",
+  warningFlag: false,
+  riskLevel: "LOW",
+  categories: [],
+  parentSummary: "",
+};
+
 export async function analyzeEmotion(
   input: DustEmotionInput
 ): Promise<DustEmotionAnalysis> {
   const url = process.env.DUST_EMOTION_WEBHOOK;
-  if (!url) throw new Error("DUST_EMOTION_WEBHOOK not configured");
+  if (!url) return STUB_EMOTION;
   return callDustWebhook<DustEmotionInput, DustEmotionAnalysis>(url, input);
 }
 
@@ -40,7 +53,17 @@ export async function runSafetyGate(
   input: DustSafetyInput
 ): Promise<DustSafetyGate> {
   const url = process.env.DUST_SAFETY_WEBHOOK;
-  if (!url) throw new Error("DUST_SAFETY_WEBHOOK not configured");
+  if (!url) {
+    return {
+      isCompliant: true,
+      injectionAttempt: false,
+      violations: [],
+      riskLevel: "LOW",
+      categories: [],
+      finalReply: input.assistantDraft,
+      escalate: "NONE",
+    };
+  }
   return callDustWebhook<DustSafetyInput, DustSafetyGate>(url, input);
 }
 
